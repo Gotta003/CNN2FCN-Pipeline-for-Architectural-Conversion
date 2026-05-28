@@ -1,0 +1,7 @@
+# Data Analysis
+numpy
+pandas
+ttkbootstrap
+customtkinter
+netron
+tkinterweb
