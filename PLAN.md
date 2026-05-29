@@ -11,8 +11,10 @@ Building a CNN→DNN knowledge distillation pipeline with ENFORCE logit refineme
 ## In Progress
 
 - [ ] Verification of the theory on notebook before building the pipeline
-- [ ] Building a GUI interface
+- [ ] Building a GUI interface high level
 - [ ] Setup Various parameters in a YAML file
+- [ ] Integrate Netron Visualization
+- [ ] Insert Icons Left Menu
 
 --- 
 

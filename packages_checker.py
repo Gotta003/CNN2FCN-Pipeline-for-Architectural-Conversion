@@ -8,6 +8,7 @@ checks={
     "customtkinter": lambda: __import__("customtkinter").__version__,
     "netron": lambda: __import__("netron").__version__,
     "tkinterweb": lambda: __import__("tkinterweb").__version__,
+    "yaml": lambda: __import__("yaml").__version__,
 }
 
 GREEN="\033[0;32m"
