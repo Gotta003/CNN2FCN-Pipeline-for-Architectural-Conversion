@@ -7,8 +7,16 @@ checks={
     "ttkbootstrap": lambda: __import__("ttkbootstrap").__version__,
     "customtkinter": lambda: __import__("customtkinter").__version__,
     "netron": lambda: __import__("netron").__version__,
-    "tkinterweb": lambda: __import__("tkinterweb").__version__,
+    "webview": lambda: __import__("webview").__version__,
     "yaml": lambda: __import__("yaml").__version__,
+    "pillow": lambda: __import__("PIL").__version__,
+    "ipykernel": lambda: __import__("ipykernel").__version__,
+    "torch": lambda: __import__("torch").__version__,
+    "scikit-learn": lambda: __import__("sklearn").__version__,
+    "matplotlib": lambda: __import__("matplotlib").__version__,
+    "requests": lambda: __import__("requests").__version__,
+    "soundfile": lambda: __import__("soundfile").__version__,
+    "tqdm": lambda: __import__("tqdm").__version__,
 }
 
 GREEN="\033[0;32m"

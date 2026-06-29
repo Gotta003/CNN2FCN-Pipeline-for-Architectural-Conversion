@@ -21,6 +21,7 @@ class AppState:
         "eval": True,
     })
     is_running: bool=False
+    netron_ready: Dict[str, bool]=field(default_factory=dict)
     #Events listeners
     _listeners: Dict[str, List[Callable]]=field(default_factory=dict)
     def subscribe(self, event: str, cb: Callable) -> None:

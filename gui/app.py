@@ -9,17 +9,25 @@ from gui.state import AppState
 import src.pipeline.config as pc
 from panels.temp_panel import TempPanel
 from panels.netron_panel import NetronPanel
+from panels.data_panel import DataPanel
+from panels.config_panel import ConfigPanel
+from panels.pipeline_panel import PipelinePanel
+from panels.run_panel import RunPanel
+from panels.results_panel import ResultPanel
+from src.assets import Icons
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
+Icons.load_all()
+
 NAV_ITEMS=[
-    ("data", "Data", "*"),
-    ("config", "Config", "*"),
-    ("pipeline", "Pipeline", "*"),
-    ("run", "Run", "*"),
-    ("results", "Results", "*"),
-    ("netron", "Netron", "*"),
+    ("data", "Data", Icons.dataset),
+    ("config", "Config", Icons.config),
+    ("pipeline", "Pipeline", Icons.pipeline),
+    ("run", "Run", Icons.run),
+    ("results", "Results", Icons.results),
+    ("netron", "Netron", Icons.hexagon),
 ]
 
 class App(ctk.CTk):
@@ -28,7 +36,7 @@ class App(ctk.CTk):
         self.title("CNN2FCN - ENFORCE + EvoNAS Pipeline")
         self.geometry("1200x780")
         self.minsize(900, 620)
-        self.state=AppState(project_root=project_root)
+        self.app_state=AppState(project_root=project_root)
         self._load_config()
         self._panels: dict[str, ctk.CTkFrame]={}
         self._buttons: dict[str, ctk.CTkButton]={}
@@ -61,7 +69,8 @@ class App(ctk.CTk):
                 ctk.CTkFrame(sidebar, height=1, fg_color=("gray80", "gray25")).pack(fill="x", padx=8, pady=(6,0))
             btn=ctk.CTkButton(
                 sidebar,
-                text=f" {icon}  {label}",
+                text=f"{label}",
+                image=icon,
                 anchor="w",
                 fg_color="transparent",
                 hover_color=("gray82", "gray22"),
@@ -90,21 +99,21 @@ class App(ctk.CTk):
         self._content.grid_rowconfigure(0, weight=1)
         self._content.grid_columnconfigure(0, weight=1)
         panel_classes={
-            "data": (TempPanel, {}),
-            "config": (TempPanel, {}),
-            "pipeline": (TempPanel, {}),
-            "run": (TempPanel, {}),
-            "results": (TempPanel, {}),
+            "data": (DataPanel, {}),
+            "config": (ConfigPanel, {}),
+            "pipeline": (PipelinePanel, {}),
+            "run": (RunPanel, {}),
+            "results": (ResultPanel, {}),
             "netron": (NetronPanel, {}),
         }
         for nav_id, (cls, kwargs) in panel_classes.items():
-            panel=cls(self._content, state=self.state, **kwargs)
+            panel=cls(self._content, app_state=self.app_state, **kwargs)
             panel.grid(row=0, column=0, sticky="nsew")
             self._panels[nav_id]=panel
-        self.state.subscribe("stage_succeded", self._update_netron_badge)
+        self.app_state.subscribe("stage_succeded", self._update_netron_badge)
         
     def _update_netron_badge(self, stage_id: str="", **_) -> None:
-        n=sum(1 for v in self.state.netron_ready.values() if v)
+        n=sum(1 for v in self.app_state.netron_ready.values() if v)
         self._netron_badge.configure(text=f"    {n} checkpoint{'s' if n!=1 else ''} ready" if n else "")    
     
     def _switch(self, id: str) -> None:
@@ -117,12 +126,12 @@ class App(ctk.CTk):
             btn.configure(fg_color=active_fg if is_active else inactive_fg, font=ctk.CTkFont(size=13, weight="bold" if is_active else "normal"))       
     
     def _load_config(self) -> None:
-        cfg_path=self.state.project_root/"config"/"pipeline.yaml"
+        cfg_path=self.app_state.project_root/"config"/"pipeline.yaml"
         if cfg_path.exists():
             try:
-                self.state.config_data=pc.load(cfg_path)
-                self.state.config_path=Path("config/pieline.yaml")
-                self.state.emit("config_loader")
+                self.app_state.config_data=pc.load(cfg_path)
+                self.app_state.config_path=Path("config/pieline.yaml")
+                self.app_state.emit("config_loader")
             except Exception as e:
                 print(f"[WARN] Could not load config: {e}")
         else:

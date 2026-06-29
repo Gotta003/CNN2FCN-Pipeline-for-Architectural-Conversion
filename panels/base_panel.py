@@ -1,28 +1,23 @@
-"""
-Parent class of a generic panel window in the main content space in app.py
-"""
 from __future__ import annotations
 from typing import Optional
 import customtkinter as ctk
 from gui.state import AppState
 
 class BasePanel(ctk.CTkFrame):
-    """
-    Abstract class for all GUI panels. Standardized layout, typography, margin, header and state
-
-    Args:
-        master: (Generic Parent component in which the Panel will be displayed),
-        state: AppState (Current status of the application in dataclass type)
-        **kwargs ()
-    """
-    def __init__(self, master, state:AppState, **kwargs):
+    def __init__(self, master, app_state: AppState, **kwargs):
         super().__init__(master, **kwargs)
-        self.state=state
+        self.app_state=app_state
         self.configure(fg_color="transparent")
         self.header_frame: Optional[ctk.CTkFrame]=None
         self.action_frame: Optional[ctk.CTkFrame]=None
         self.status_lbl: Optional[ctk.CTkLabel]=None
         self.main_container: Optional[ctk.CTkFrame]=None
+        self.status_lbl = ctk.CTkLabel(
+            self, text="", anchor="w",
+            font=ctk.CTkFont(size=11),
+            text_color=("gray50", "gray55")
+        )
+        self.status_lbl.pack(fill="x", padx=24, pady=(2, 6))
         self.build_content()
         
     def set_status(self, msg: str, is_error: bool=False, is_success: bool=False):
@@ -30,7 +25,7 @@ class BasePanel(ctk.CTkFrame):
         def _update():
             if is_error:
                 color="#E24B4A"
-            elif is_success or msg.startswith("✓") or msg.startswith("⬡"):
+            elif is_success:
                 color="#1D9E75"
             else:
                 color=("gray50", "gray55")

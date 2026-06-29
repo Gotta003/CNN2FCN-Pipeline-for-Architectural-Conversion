@@ -1,10 +1,21 @@
 # LogBook
 
+## 29/05/2026 - Continue GUI Setup, STarting translation from notebook
+**What will I do next time?**
+
+**What did I work on?**
+
+**What do I want to do?**
+- Integrate Netron Visualization
+- Start internal panels
+- Insert Icons on the left
 ---
 
-## 28/05/2026 - GUI Setup, Starting YAML Parameters Definition, Starting translation from notebook
+## 28/05/2026 - GUI Setup, Starting YAML Parameters Definition
 **What will I do next time?**
-- 
+- Integrate Netron Visualization
+- Setup a high-level structure
+- Insert Icons on the left
 
 **What did I work on?**
 - Structure of the repository
