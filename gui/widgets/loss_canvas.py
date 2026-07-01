@@ -22,49 +22,63 @@ class LossCanvas(ctk.CTkFrame):
             self._canvas=None
             return
         bg="#1A1A1A"
-        self._fig, (self._ax_loss, self._ax_acc)=plt.subplots(1, 2, figsize=(7, 2.8), facecolor=bg)
-        for ax in (self._ax_loss, self._ax_acc):
+        self._fig, self._axes=plt.subplots(2, 2, figsize=(8, 5.5), facecolor=bg)
+        self._ax_loss, self._ax_acc, self._ax_f1, self._ax_gap=self._axes.flatten()
+        self._setup_axes()
+        self._mpl_canvas=FigureCanvasTkAgg(self._fig, master=self)
+        self._mpl_canvas.get_tk_widget().pack(fill="both", expand=True)
+    
+    def _setup_axes(self):
+        bg="#1A1A1A"
+        titles=["Loss", "Accuracy", "F1-Score", "Overfitting Gap"]
+        for ax, title in zip(self._axes.flatten(), titles):
             ax.set_facecolor(bg)
             ax.tick_params(colors="gray", labelsize=8)
             ax.spines[:].set_color("#444")
-        self._ax_loss.set_title("Training loss", color="gray", fontsize=9)
-        self._ax_acc.set_title("Val accuracy (%)", color="gray", fontsize=9)
-        self._fig.tight_layout(pad=1.5)
-        self._mpl_canvas=FigureCanvasTkAgg(self._fig, master=self)
-        self._mpl_canvas.get_tk_widget().pack(fill="both", expand=True)
+            ax.set_title(title, color="gray", fontsize=10)
+        self._fig.tight_layout(pad=2.0)
         
-    def add_point(self, stage: str, epoch: int, loss: float, val_acc: float) -> None:
+    def add_point(self, stage: str, epoch: int, t_loss: float, v_loss: float, t_acc: float, v_acc: float, t_f1: float, v_f1: float) -> None:
         if not HAS_MPL:
             return
-        d=self._data.setdefault(stage, {"epoch": [], "loss": [], "val": []})
+        d=self._data.setdefault(stage, {"epoch": [], "t_loss": [], "v_loss": [], "t_acc": [], "v_acc": [], "t_f1": [], "v_f1": []})
         d["epoch"].append(epoch)
-        d["loss"].append(loss)
-        d["val"].append(val_acc*100)
+        d["t_loss"].append(t_loss)
+        d["v_loss"].append(v_loss)
+        d["t_acc"].append(t_acc*100 if t_acc<=1.0 else t_acc)
+        d["v_acc"].append(v_acc*100 if v_acc<=1.0 else v_acc)
+        d["t_f1"].append(t_f1)
+        d["v_f1"].append(v_f1)
         self._redraw()
         
     def _redraw(self):
         colors=["#378ADD", "#1D9E75", "#EF9F27", "#E24B4A", "#7F77DD", "#D85A30", "#009688"]
-        self._ax_loss.cla()
-        self._ax_acc.cla()
-        self._ax_loss.set_title("Training loss", color="gray", fontsize=9)
-        self._ax_acc.set_title("Val accuracy (%)", color="gray", fontsize=9)
-        bg="#1A1A1A"
-        for ax in (self._ax_loss, self._ax_acc):
-            ax.set_facecolor(bg)
-            ax.tick_params(colors="gray", labelsize=8)
-            ax.spines[:].set_colors("#444")
+        for ax in self._axes.flatten():
+            ax.cla()
+        self._setup_axes()
         for i, (stage, d) in enumerate(self._data.items()):
             c=colors[i%len(colors)]
-            if d["loss"]:
-                self._ax_loss.plot(d["epoch"], d["loss"], color=c, lw=1.5, label=stage)
-            if d["val"]:
-                self._ax_acc.plot(d["epoch"], d["val"], color=c, lw=1.5, label=stage)
+            ep=d["epoch"]
+            if not ep:
+                continue
+            #Loss Graph
+            self._ax_loss.plot(ep, d["t_loss"], color=c, lw=1.5, linestyle=":", alpha=0.7, label=f"{stage} (Train)")
+            self._ax_loss.plot(ep, d["v_loss"], color=c, lw=1.5, label=f"{stage} (Val)")
+            #Acc Graph
+            self._ax_acc.plot(ep, d["t_acc"], color=c, lw=1.5, linestyle=":", alpha=0.7, label=f"{stage} (Train)")
+            self._ax_acc.plot(ep, d["v_acc"], color=c, lw=1.5, label=f"{stage} (Val)")    
+            #F1 Graph
+            self._ax_f1.plot(ep, d["t_f1"], color=c, lw=1.5, linestyle=":", alpha=0.7, label=f"{stage} (Train)")
+            self._ax_f1.plot(ep, d["v_f1"], color=c, lw=1.5, label=f"{stage} (Val)")
+            #Gap Overfitting
+            gap=[tf1-vf1 for tf1, vf1 in zip(d["t_f1"], d["v_f1"])]
+            self._ax_gap.plot(ep, gap, color=c, lw=1.5, label=f"{stage} Gap")
+            self._ax_gap.axhline(0, color="gray", lw=1, linestyle="--", alpha=0.5)
+            
+        for ax in self._axes.flatten():
+            if ax.has_data():
+                ax.legend(fontsize=7, facecolor="#2A2A2A", labelcolor="gray", loc="best")
                 
-        if any(d["loss"] for d in self._data.values()):
-            self._ax_loss.legend(fontsize=7, facecolor="#2A2A2A", labelcolor="gray")
-        if any(d["val"] for d in self._data.values()):
-            self._ax_acc.legend(fontsize=7, facecolor="#2A2A2A", labelcolor="gray")
-        self._fig.tight_layout(pad=1.5)
         if self._mpl_canvas:
             self._mpl_canvas.draw_idle()
     

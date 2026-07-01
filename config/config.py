@@ -28,14 +28,13 @@ SECTIONS: list[tuple[str, str, Dict[str, str]]] = [
         "lambda_cls": "Classification head weight (≤0.1 keeps reconstruction dominant)",
         "batch_size": "Batch size for refiner",
     }),
-    ("stage1", "Stage 2 — HSR hint distillation", {
+    ("stage_hint", "Stage 2 — HSR hint distillation", {
         "epochs":         "Training epochs",
         "lr":             "Learning rate",
         "weight_decay":   "AdamW weight decay",
         "hint_weight":    "Weight on hybrid hint loss",
         "ce_weight":      "Weight on focal CE loss",
         "focal_gamma":    "Focal loss γ",
-        "unknown_weight": "Unknown-class entropy push weight",
         "mixup_alpha":    "Mixup α parameter",
         "mixup_prob":     "Probability of applying mixup per batch",
         "patience":       "Early-stopping patience (epochs)",
@@ -43,7 +42,7 @@ SECTIONS: list[tuple[str, str, Dict[str, str]]] = [
         "dropout":        "Dropout rate in fusion head",
         "weights_path":   "Output path for Stage 1 bridge .pth",
     }),
-    ("stage2", "Stage 3 — DKD fine-tuning", {
+    ("stage_dkd", "Stage 3 — DKD fine-tuning", {
         "epochs":         "Fine-tuning epochs",
         "lr":             "Learning rate",
         "weight_decay":   "AdamW weight decay",
@@ -98,12 +97,15 @@ def save(cfg: Dict[str, Any], path: Path)->None:
     with open(path, "w") as f:
         yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
         
-def validate(cfg: Dict[str, Any])->List[str]:
+def validate(cfg: Dict[str, Any])->list[str]:
     errors: list[str]=[]
     dataset=Path(cfg.get("data", {}).get("dataset_path", ""))
     if not dataset.exists():
         errors.append(f"Dataset not found: {dataset}")
-    teacher_path=Path(cfg.get("teacher", {}).get("weights_path", ""))
+    n_known=cfg.get("data", {}).get("num_classes", 0)
+    n_all=len(cfg.get("data", {}).get("class_names_all", []))
+    if n_known and n_all and n_known>=n_all:
+        errors.append(f"num_classes ({n_known}) must be less than len(class_names_all) ({n_all})")
     return errors
 
 def coerce_value(raw: str, original: Any) -> Any:

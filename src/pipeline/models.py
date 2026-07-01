@@ -54,3 +54,21 @@ class TeacherCNN(nn.Module):
     
     def get_hints(self):
         return [h.view(h.size(0), -1) for h in self._hints]
+    
+class LogitRefiner(nn.Module):
+    def __init__(self):
+        pass
+    
+class HSRBridge(nn.Module):
+    def __init__(self):
+        pass
+    
+class CompressedHSRBridge(nn.Module):
+    def __init__(self, teacher, input_shape, tracker_dim, embed_dim, ranks, dropout):
+        pass
+    
+def  count_compressed_params(r1, r2, r3, f, e, tracker_dim, num_classes, flat_out=3200):
+    hsr=(1600*r1+r1*51200)+(12800*r2+r2*25600)+(6400*r3+r3*12800)
+    fuse=(flat_out+tracker_dim)*f+2*f+f*e+2*e
+    head=e*num_classes+num_classes
+    return hsr+fuse+head

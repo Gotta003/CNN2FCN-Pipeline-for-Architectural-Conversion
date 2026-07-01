@@ -3,7 +3,7 @@
 #   chmod +x setup.sh
 #   ./setup.sh
 # After the script finishes, activate environment
-#  source .venv/bin/activate
+#  source .tiny_env/bin/activate
 
 set -e
 # Color setup

@@ -4,10 +4,8 @@ checks={
     "tkinter": lambda: str(__import__("tkinter").TkVersion),
     "pandas": lambda: __import__("pandas").__version__,
     "numpy": lambda: __import__("numpy").__version__,
-    "ttkbootstrap": lambda: __import__("ttkbootstrap").__version__,
     "customtkinter": lambda: __import__("customtkinter").__version__,
     "netron": lambda: __import__("netron").__version__,
-    "webview": lambda: __import__("webview").__version__,
     "yaml": lambda: __import__("yaml").__version__,
     "pillow": lambda: __import__("PIL").__version__,
     "ipykernel": lambda: __import__("ipykernel").__version__,
@@ -17,6 +15,7 @@ checks={
     "requests": lambda: __import__("requests").__version__,
     "soundfile": lambda: __import__("soundfile").__version__,
     "tqdm": lambda: __import__("tqdm").__version__,
+    "cupy": lambda: __import__("cupy").__version__,
 }
 
 GREEN="\033[0;32m"
@@ -26,6 +25,7 @@ failed=[]
 
 for pkg, ver in checks.items():
     try:
+        ver()
         print(f"{GREEN}{pkg:<20} {ver}{RESET}")
     except Exception as e:
         print(f"{RED}{pkg:<20} not found{RESET}")

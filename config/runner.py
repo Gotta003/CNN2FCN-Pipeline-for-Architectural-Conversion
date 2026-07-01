@@ -58,7 +58,7 @@ class StageRunner:
         if self._thread and self._thread.is_alive():
             return
         self._abort.clear()
-        self._thread=threading.Thread(target=self._run_stages, args=(enabled_stages), daemon=True)
+        self._thread=threading.Thread(target=self._run_stages, args=(enabled_stages,), daemon=True)
         self._thread.start()
         
     def abort(self)->None:
@@ -74,7 +74,7 @@ class StageRunner:
         self.log_queue.put(msg)
         
     def _run_stages(self, enabled_stages: list[str]) -> None:
-        pipeline_dir=Path(__file__).parent
+        pipeline_dir=Path(__file__).parent.parent
         for stage_id, display_name, script_rel in STAGE_DEFS:
             if self._abort.is_set():
                 break
@@ -90,7 +90,7 @@ class StageRunner:
             self._log(f"    {display_name}")
             self._log(f"{'='*60}")
             self.status_cb(stage_id, StageStatus.RUNNING)
-            
+
             cmd=[
                 sys.executable, str(script),
                 "--config", str(self.config_path),

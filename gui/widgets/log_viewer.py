@@ -15,6 +15,10 @@ _TAGS: dict[str, str]={
     "ABORT": "#E24B4A",
     "OK": "#1D9E75",
     "best": "#1D9E75",
+    "%": "#EF9F27",
+    "Download": "#378ADD",
+    "Extracting": "#7F77DD",
+    "Complete": "#1D9E75",
 }
 
 class LogViewer(ctk.CTkFrame):
@@ -29,8 +33,13 @@ class LogViewer(ctk.CTkFrame):
         for kw, col in _TAGS.items():
             self._text.tag_configure(kw, foreground=col)
             
-    def append(self, line: str) -> None:
+    def append(self, line: str, replace: bool) -> None:
         self._text.configure(state="normal")
+        if replace:
+            try:
+                self._text.delete("end-2l", "end-1l")
+            except tk.TclError:
+                pass
         tag=next((k for k in _TAGS if k in line), None)
         if tag:
             self._text.insert("end", line+"\n", tag)

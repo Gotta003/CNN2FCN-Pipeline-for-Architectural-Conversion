@@ -1,111 +1,139 @@
-# ── Data ──────────────────────────────────────────────────────────────────────
 data:
-  dataset_path: "data/dataset_kws_multi.npz"
-  values_name: "features"
-  labels_name: "labels"
+  dataset_path: /home/gotta-franco/CNN2FCN-Pipeline-for-Architectural-Conversion/data
+  values_name: features
+  labels_name: labels
   seed: 42
+  class_names_all:
+  - zero
+  - one
+  - two
+  - three
+  - four
+  - five
+  - six
+  - seven
+  - eight
+  - nine
+  - silence
+  - unknown
   class_names:
-    - right
-    - off
-    - down
-    - yes
-    - no
-    - stop
-    - left
-    - go
-    - up
-    - on
-    - silence
-    - unknown
-  num_classes: 12
-  input_shape: [40, 40, 1]
+  - backward
+  - down
+  - forward
+  - left
+  - 'off'
+  - 'on'
+  - right
+  - up
+  - 'yes'
+  - silence
+  unknown_label: unknown
+  num_classes: 11
+  input_shape:
+  - 40
+  - 40
+  - 1
   pixel_dim: 1600
   tracker_dim: 33
   batch_size: 64
-  test_fraction: 0.30
-  val_fraction: 0.50    # fraction of the held-out temp split
-
-# ── Stage 0 — Teacher CNN ─────────────────────────────────────────────────────
+  test_fraction: 0.15
+  val_fraction: 0.15
 teacher:
   epochs: 100
-  lr: 1.0e-3
-  weight_decay: 5.0e-4
+  lr: 0.001
+  weight_decay: 0.0005
   dropout: 0.4
-  weights_path: "models/kws_multi_cnn_model_pytorch.pth"
-
-# ── Stage 1 — ENFORCE LogitRefiner ────────────────────────────────────────────
+  weights_path: models/kws_multi_cnn_model_pytorch.pth
 enforce:
   epochs: 25
-  lr: 1.0e-3
-  lambda_cls: 0.1       # classification head weight (reconstruction dominant)
+  lr: 0.001
+  lambda_cls: 0.1
   batch_size: 64
-
-# ── Stage 2 — HSR hint distillation (Bridge Stage 1) ─────────────────────────
-stage1:
+  weights_path: models/refiner.pth
+hint:
   epochs: 300
-  lr: 2.0e-4
-  weight_decay: 5.0e-4
+  lr: 0.0002
+  weight_decay: 0.0005
   hint_weight: 0.3
   ce_weight: 1.0
   focal_gamma: 2.0
-  unknown_weight: 1.0
   mixup_alpha: 0.2
   mixup_prob: 0.4
   patience: 20
-  hsr_ranks: [16, 8, 4]
+  hsr_ranks:
+  - 16
+  - 8
+  - 4
   embed_dim: 128
   dropout: 0.4
-  weights_path: "models/bridge_stage1.pth"
-
-# ── Stage 3 — DKD fine-tuning (Bridge Stage 2) ───────────────────────────────
-stage2:
+  weights_path: models/bridge_stage1.pth
+dkd:
   epochs: 150
-  lr: 8.0e-5
-  weight_decay: 5.0e-4
+  lr: 8.0e-05
+  weight_decay: 0.0005
   kd_temperature: 4.0
   dkd_alpha: 1.0
   dkd_beta: 1.0
-  nuc_reg: 0.01         # nuclear-norm penalty on U_r matrices
+  nuc_reg: 0.01
   patience: 20
-  weights_path: "models/bridge_stage2.pth"
-
-# ── Stage 4 — 1M Anchor student ───────────────────────────────────────────────
+  weights_path: models/bridge_stage2.pth
 anchor:
   target_budget: 1000000
   epochs: 200
-  lr: 2.0e-4
-  weight_decay: 5.0e-4
+  lr: 0.0002
+  weight_decay: 0.0005
   kd_temperature: 4.0
   lambda_kd: 0.7
   patience: 20
-  weights_path: "models/anchor_1M.pth"
-  rank_choices: [4, 8, 16, 32, 64]
-  fusion_choices: [128, 256, 512]
-  embed_choices: [64, 96, 128]
-
-# ── Stage 5 — Evolutionary NAS ────────────────────────────────────────────────
+  weights_path: models/anchor_1M.pth
+  rank_choices:
+  - 4
+  - 8
+  - 16
+  - 32
+  - 64
+  fusion_choices:
+  - 128
+  - 256
+  - 512
+  embed_choices:
+  - 64
+  - 96
+  - 128
 nas:
-  budgets: [200000, 350000, 589000]
+  budgets:
+  - 200000
+  - 350000
+  - 589000
   generations: 50
   pop_size: 24
   tournament_k: 4
   mutation_prob: 0.3
   proxy_epochs: 20
-  proxy_lr: 5.0e-4
+  proxy_lr: 0.0005
   finetune_epochs: 100
-  finetune_lr: 1.0e-4
+  finetune_lr: 0.0001
   finetune_patience: 10
   kd_temperature: 4.0
   lambda_kd: 0.7
-  rank_choices: [4, 8, 16, 32, 64]
-  fusion_choices: [128, 256, 512]
-  embed_choices: [64, 96, 128]
-  results_path: "models/nas_results.json"
-  subnet_prefix: "nas_bridge"
-
-# ── Stage 6 — Evaluation ──────────────────────────────────────────────────────
+  rank_choices:
+  - 4
+  - 8
+  - 16
+  - 32
+  - 64
+  fusion_choices:
+  - 128
+  - 256
+  - 512
+  embed_choices:
+  - 64
+  - 96
+  - 128
+  results_path: models/nas_results.json
+  subnet_prefix: nas_bridge
 eval:
-  threshold_sweep_start: 0.20
-  threshold_sweep_end: 0.96
-  threshold_sweep_step: 0.02
-  benchmark_plot_path: "nas_benchmark.png"
+  threshold_sweep_start: 0.1
+  threshold_sweep_end: 0.99
+  threshold_sweep_step: 0.01
+  benchmark_plot_path: models/nas_benchmark.png

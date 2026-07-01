@@ -1,10 +1,8 @@
 # Data Analysis
 numpy
 pandas
-ttkbootstrap
 customtkinter
 netron
-pywebview
 pyyaml
 Pillow
 ipykernel
@@ -19,3 +17,4 @@ seaborn
 qtpy
 PyQt5
 PyQtWebEngine
+cupy-cuda12x
