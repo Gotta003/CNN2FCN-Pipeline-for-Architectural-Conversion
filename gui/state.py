@@ -45,7 +45,7 @@ class AppState:
     def check_dataset_ready(self) -> bool:
         import json
         import hashlib
-        required=["dataset_train.npz", "dataset_val_known.npz", "dataset_val_full.npz","dataset_test.npz"]
+        required=["dataset_train.npz", "dataset_val.npz", "dataset_test.npz"]
         if not all((self.project_root/"data"/f).exists() for f in required):
             self.dataset_ready=False
             self.dataset_manifest=None

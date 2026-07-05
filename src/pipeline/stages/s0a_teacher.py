@@ -18,6 +18,8 @@ torch.backends.cudnn.enabled = False
 import functools
 print=functools.partial(print, flush=True)
 
+from src.pipeline.callbacks import EarlyStopping
+
 def parse_args():
     p=argparse.ArgumentParser()
     p.add_argument("--config", required=True)
@@ -47,16 +49,20 @@ def main():
     n_classes=splits["n_classes"]
     H, W=data_cfg["input_shape"][:2]    
     batch=data_cfg["batch_size"]
-    tr_loader=DataLoader(TensorDataset(splits["X_train_spatial"], splits["y_train"]), batch_size=batch, shuffle=True, drop_last=True)
-    va_loader=DataLoader(TensorDataset(splits["X_val_known_spatial"], splits["y_val_known"]), batch_size=batch, shuffle=False)
+    tr_loader=DataLoader(TensorDataset(splits["X_train_spatial_k"], splits["y_train"]), batch_size=batch, shuffle=True, drop_last=True)
+    va_loader=DataLoader(TensorDataset(splits["X_val_spatial_k"], splits["y_val"]), batch_size=batch, shuffle=False)
     print(f"Train: {len(tr_loader)} Val: {len(va_loader)}")
     #Model
     model=TeacherCNN(input_shape=(1, H, W), num_classes=n_classes).to(device)
     print(f"Teacher params: {sum(p.numel() for p in model.parameters()):,}")
-    print(f"Train: {len(splits['y_train']):,}  Val: {len(splits['y_val_known']):,}  Test: {len(splits['y_test']):,}  (fixed splits)")
+    print(f"Train: {len(splits['y_train']):,}  Val: {len(splits['y_val']):,}  Test: {len(splits['y_test']):,}  (fixed splits)")
     opt=torch.optim.AdamW(model.parameters(), lr=teacher_cfg["lr"], weight_decay=teacher_cfg["weight_decay"])
     sched=torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=teacher_cfg["epochs"], eta_min=1e-6)
+    plateau_sched=torch.optim.lr_scheduler.ReduceLROnPlateau(opt, mode="max", factor=0.5, patience=teacher_cfg.get("plateau_patience", 8), min_lr=1e-6)
     ce=nn.CrossEntropyLoss(weight=splits["class_weights"].to(device).float())
+    
+    early_stop=EarlyStopping(patience=teacher_cfg.get("early_stop_patience", 20), min_delta=teacher_cfg.get("early_stop_min_delta", 1e-4), mode="max")
+        
     best_val, best_state=0.0, None
     from src.pipeline.metrics_logger import MetricsLogger
     logger=MetricsLogger(root, 'teacher')
@@ -101,7 +107,9 @@ def main():
         val_loss=val_loss_sum/len(va_loader)
         val_acc=vc/vt
         val_f1=float(f1_score(val_targets, val_preds, average="macro"))
-        print(f"Ep {epoch+1:3d}/{teacher_cfg['epochs']} | Train: loss={train_loss:.4f} acc={train_acc*100:.2f}% f1={train_f1*100:.4f}% | Val: loss={val_loss:.4f} acc={val_acc*100:.2f}% f1={val_f1*100:.4f}%")
+        plateau_sched.step(val_acc)
+        cur_lr=opt.param_groups[0]["lr"]
+        print(f"Ep {epoch+1:3d}/{teacher_cfg['epochs']} | Train: loss={train_loss:.4f} acc={train_acc*100:.2f}% f1={train_f1*100:.4f}% | Val: loss={val_loss:.4f} acc={val_acc*100:.2f}% f1={val_f1*100:.4f}% | lr={cur_lr:.2e}")
         logger.log_epoch(epoch+1, train_loss, val_loss, train_acc, val_acc, train_f1, val_f1)
         if val_acc>best_val:
             best_val=val_acc
@@ -109,6 +117,9 @@ def main():
             out=root / teacher_cfg["weights_path"]
             torch.save(best_state, out)
             print(f" New best val={val_acc*100:.2f}% - save to {out}")
+        if early_stop.step(val_acc):
+            print(f"\nEarly stopping: no improvement of val_acc from {early_stop.patience} epochs (best={early_stop.best*100:.2f}%). Stop training")
+            break
     logger.finalize()
     print(f"\nStage 0 complete. Best val acc: {best_val*100:.2f}%")
     

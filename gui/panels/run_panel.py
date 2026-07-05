@@ -20,10 +20,11 @@ _EP_RE = re.compile(
 )
 
 #Stages with PTH
-_HAS_PTH={"teacher", "enforce", "hint", "dkd", "anchor", "nas"}
+_HAS_PTH={"teacher", "energy", "enforce", "hint", "dkd", "anchor", "nas"}
 
 _SHORT={
     "teacher": "Teacher",
+    "energy": "Energy OOD",
     "enforce": "ENFORCE",
     "hint": "Hint KD",
     "dkd": "DKD",

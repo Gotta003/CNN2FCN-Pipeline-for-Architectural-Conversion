@@ -4,29 +4,30 @@ data:
   labels_name: labels
   seed: 42
   class_names_all:
-  - zero
-  - one
-  - two
-  - three
-  - four
-  - five
-  - six
-  - seven
-  - eight
-  - nine
-  - silence
-  - unknown
-  class_names:
   - backward
   - down
   - forward
   - left
+  - 'no'
   - 'off'
   - 'on'
   - right
   - up
   - 'yes'
   - silence
+  - unknown
+  class_names:
+  - eight
+  - five
+  - four
+  - nine
+  - one
+  - seven
+  - silence
+  - six
+  - three
+  - two
+  - zero
   unknown_label: unknown
   num_classes: 11
   input_shape:
@@ -36,14 +37,26 @@ data:
   pixel_dim: 1600
   tracker_dim: 33
   batch_size: 64
+  train_fraction: 0.7
   test_fraction: 0.15
   val_fraction: 0.15
+  train_unk_words: 0.5
+  val_unk_words: 0.25
+  test_unk_words: 0.25
 teacher:
   epochs: 100
   lr: 0.001
   weight_decay: 0.0005
   dropout: 0.4
   weights_path: models/kws_multi_cnn_model_pytorch.pth
+  energy_finetune_epochs: 15
+  energy_finetune_lr: 0.0001
+  energy_finetune_max_acc_drop: 0.02
+  energy_weights_path: models/kws_multi_cnn_model_pytorch_energy.pth
+  energy_m_in: -6.0
+  energy_m_out: 0.0
+  energy_weight: 0.3
+  energy_ramp_epochs: 3
 enforce:
   epochs: 25
   lr: 0.001

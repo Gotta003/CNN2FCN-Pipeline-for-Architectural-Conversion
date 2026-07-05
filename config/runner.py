@@ -25,7 +25,8 @@ class StageResult:
 BASE_DIR="src/pipeline/stages"
     
 STAGE_DEFS: list[tuple[str, str, str]]=[
-    ("teacher", "Stage 0 - Teacher CNN", f"{BASE_DIR}/s0_teacher.py"),
+    ("teacher", "Stage 0a - Teacher CNN", f"{BASE_DIR}/s0a_teacher.py"),
+    ("energy", "Stage 0b - Fine Tuning Energy OOD", f"{BASE_DIR}/s0b_energy.py"),
     ("enforce", "Stage 1 - ENFORCE refiner", f"{BASE_DIR}/s1_enforce.py"),
     ("hint", "Stage 2 - HSR hint distillation", f"{BASE_DIR}/s2_hint.py"),
     ("dkd", "Stage 3 - DKD fine-tuning", f"{BASE_DIR}/s3_dkd.py"),

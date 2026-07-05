@@ -6,19 +6,20 @@ from config.runner import STAGE_DEFS, STAGE_DEPS
 from gui.panels.base_panel import BasePanel
 
 _STAGE_DESCRIPTIONS = {
-    "teacher": "Train the Teacher CNN on the spectrogram dataset.",
-    "enforce": "Pre-train the ENFORCE LogitRefiner on teacher logits.\n"
+    "teacher": "Stage 0a - Train the Teacher CNN on the spectrogram dataset.",
+    "energy": "Stage 0b - Fine-tuning energy with a teacher for OOD distribution.",
+    "enforce": "Stage 1 - Pre-train the ENFORCE LogitRefiner on teacher logits.\n"
                "Produces normalised latent targets used in hint distillation.",
-    "hint":    "Stage 2 — HSR hint distillation.\n"
+    "hint":    "Stage 2 - HSR hint distillation.\n"
                "Train the Bridge DNN using refined latent targets + focal loss.",
-    "dkd":     "Stage 3 — DKD fine-tuning.\n"
+    "dkd":     "Stage 3 - DKD fine-tuning.\n"
                "Fine-tune Bridge relaxation layers with TCKD + NCKD losses.",
-    "anchor":  "Stage 4 — 1M anchor student.\n"
+    "anchor":  "Stage 4 - 1M anchor student.\n"
                "Train a CompressedHSRBridge at 1M params; provides warm-start weights for NAS.",
-    "nas":     "Stage 5 — Evolutionary NAS.\n"
+    "nas":     "Stage 5 - Evolutionary NAS.\n"
                "Tournament selection + crossover + mutation over architecture budgets.\n"
                "Proxy-trains candidates, fully fine-tunes each budget winner.",
-    "eval":    "Stage 6 — Evaluation.\n"
+    "eval":    "Stage 6 - Evaluation.\n"
                "Tune open-set confidence thresholds, run benchmark, save JSON + plot.",
 }
 

@@ -225,6 +225,7 @@ class DataPanel(BasePanel):
         if self._preparing:
             return
         selected_words=[w for w, cb in self._checkboxes.items() if cb.get()==1]
+        print(selected_words)             
         if not selected_words:
             self._status_lbl.configure(text="Error: Please select at least one keyword!", text_color="#E24B4A")
             return
@@ -326,14 +327,14 @@ class DataPanel(BasePanel):
         m=self.state.dataset_manifest
         if not m:
             return
-        class_names=m["class_names"]
+        class_names=m.get("class_names", [])
         for word, cb in self._checkboxes.items():
             if word in class_names:
                 cb.select()
             else:
                 cb.deselect()
         if self.state.config_data and "data" in self.state.config_data:
-            self.state.config_data["data"]["class_names"]=[c for c in class_names if c not in ("unknown")]
+            self.state.config_data["data"]["class_names"]=[c for c in class_names if c not in ("unknown",)]
             self.state.config_data["data"]["num_classes"]=m.get("num_classes", len(class_names))
             try:
                 import config.config as pcfg
@@ -342,18 +343,27 @@ class DataPanel(BasePanel):
                 pass
         
         def counts_for(split_key):
-            cc=m[f"{split_key}_class_counts"]
+            cc=m.get(f"{split_key}_class_counts", {})
             return [cc.get(c, 0) for c in class_names]
         
-        self._chart.set_data(class_names, counts_for("train"), counts_for("val_known"), counts_for("test"))
-        val_unk=m.get("val_unknown_samples", "-")
-        te_unk=m.get("test_unknown_samples", "-")
+        self._chart.set_data(class_names, counts_for("train"), counts_for("val"), counts_for("test"))
+        tr_unk=m.get("train_unknown_samples", 0)
+        va_unk=m.get("val_unknown_samples", 0)
+        te_unk=m.get("test_unknown_samples", 0)
         f_type=m.get("feature_type", "MFE")
-        self._stat_labels["total"].configure(text=f"{m['known_samples']:,} known + {m['unknown_samples']:,} unknown")
-        self._stat_labels["n_cls"].configure(text=f"({m["num_classes"]} known (+ unknown)")
-        self._stat_labels["tr_size"].configure(text=f"{m["train_samples"]:,} (known only)")
-        self._stat_labels["va_size"].configure(text=f"{m["val_known_samples"]:,} known + {val_unk} unk")
-        self._stat_labels["te_size"].configure(text=f"{m.get("test_samples", 0) - m.get("test_unknown_samples", 0):,} known + {te_unk} unk")
+        tr_tot=m.get("train_samples", 0)
+        tr_known=tr_tot-tr_unk
+        va_tot=m.get("val_samples", 0)
+        va_known=va_tot-va_unk
+        te_tot=m.get("test_samples", 0)
+        te_known=te_tot-te_unk
+        tot_known=tr_known+va_known+te_known
+        tot_unk=tr_unk+va_unk+te_unk
+        self._stat_labels["total"].configure(text=f"{tot_known:,} known + {tot_unk:,} unknown")
+        self._stat_labels["n_cls"].configure(text=f"({m.get('num_classes', 0)} known + 1 unknown)")
+        self._stat_labels["tr_size"].configure(text=f"{tr_known:,} known + {tr_unk} unk")
+        self._stat_labels["va_size"].configure(text=f"{va_known:,} known + {va_unk} unk")
+        self._stat_labels["te_size"].configure(text=f"{te_known:,} known + {te_unk} unk")
         self._stat_labels["feat"].configure(text=f_type, text_color="#378ADD")
         self._update_ready_badge()
         

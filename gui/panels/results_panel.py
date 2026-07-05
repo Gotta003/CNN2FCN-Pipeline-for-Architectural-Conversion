@@ -288,6 +288,7 @@ class ModelMetricsView(ctk.CTkFrame):
         stem=self._path.stem
         meta=_PTH_META.get(stem, ("", stem))
         stage=meta[1]
+        loaded=False
         for fname in [f"metrics_{stage}.json", f"metrics_{stem}.json"]:
             sidecar=self._state.project_root / fname
             if sidecar.exists():
@@ -299,10 +300,13 @@ class ModelMetricsView(ctk.CTkFrame):
                     for w in frame.winfo_children():
                         w.destroy()
                     TrainingCurvesView(frame, metrics).pack(fill="both", expand=True)
+                    loaded=True
+                    break
                 except Exception:
                     pass
-        frame=self._tabs.tab("Training Curves")
-        TrainingCurvesView(frame, {}).pack(fill="both", expand=True)
+        if not loaded:
+            frame=self._tabs.tab("Training Curves")
+            TrainingCurvesView(frame, {}).pack(fill="both", expand=True)
         
     def _run_eval(self):
         self._eval_btn.configure(state="disabled")
@@ -331,6 +335,11 @@ class ModelMetricsView(ctk.CTkFrame):
         cfg=self._state.config_data
         if not cfg:
             raise RuntimeError("No config loaded. Set project root first.")
+        
+        print("\n"+"="*70)
+        print("[EVAL] _do_eval()")
+        print(f"[EVAL] Checkpoint: {self._path}")
+        print(f"[EVAL] Checkpoint stem: {self._path.stem}")
         from src.pipeline.data_utils import load_splits, DatasetNotPreparedError
         try:
             splits=load_splits(cfg, root)
@@ -343,18 +352,46 @@ class ModelMetricsView(ctk.CTkFrame):
         self._class_names=class_names
         device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         stem=self._path.stem
-    
+        #Val
+        X_val=torch.cat([splits["X_val_spatial_k"], splits["X_val_spatial_u"]])
+        y_val_unk=torch.full((splits["X_val_spatial_u"].size(0),), UNKNOWN_SENTINEL, dtype=torch.long)
+        y_val=torch.cat([splits["y_val"], y_val_unk], dim=0)
+        #Test
+        X_test=torch.cat([splits["X_test_spatial_k"], splits["X_test_spatial_u"]])
+        y_test_unk=torch.full((splits["X_test_spatial_u"].size(0),), UNKNOWN_SENTINEL, dtype=torch.long)
+        y_test=torch.cat([splits["y_test"], y_test_unk])
+        
+        print(f"[EVAL] n_classes (da splits)  : {n_classes}")
+        print(f"[EVAL] len(class_names)       : {len(class_names)}  "
+              f"{'<<< MISMATCH with n_classes!' if len(class_names) != n_classes else '(ok)'}")
+        print(f"[EVAL] known_indices          : {known_indices}")
+        print(f"[EVAL] X_val shape: {tuple(X_val.shape)}")
+        print(f"[EVAL] y_val shape: min={y_val.min().item()} max={y_val.max().item()} unique={sorted(y_val.unique().tolist())}")
+        print(f"[EVAL] X_test shape: {tuple(X_test.shape)}")
+        print(f"[EVAL] y_test shape: min={y_test.min().item()} max={y_test.max().item()} unique={sorted(y_test.unique().tolist())}")
         from src.pipeline.models import (TeacherCNN, LogitRefiner, HSRBridge, CompressedHSRBridge)
         s1_cfg=cfg.get("stage1", {})
         s2_cfg=cfg.get("stage2", {})
         nas_cfg=cfg.get("nas", {})
         td=cfg["data"]["tracker_dim"]
         if stem=="kws_multi_cnn_model_pytorch":
+            print("[EVAL] Teacher CNN")
             model=TeacherCNN(input_shape=(1, 40, 40), num_classes=n_classes).to(device)
+            print(f"[EVAL] Weights from: {self._path}")
             model.load_state_dict(torch.load(self._path, map_location=device))
+            model.eval()
+            print("[EVAL] load_state_dict: OK")
             def infer(xf):
-                px=xf[:, :cfg["data"]["pixel_dim"]].view(-1, 1, 40, 40).to(device)
-                return model(px)
+                return model(xf.to(device))
+            with torch.no_grad():
+                sample_x=splits["X_test_spatial_k"][:512]
+                sample_y=splits["y_test"][:512]
+                samples_logits=infer(sample_x)
+                sample_preds=samples_logits.argmax(1).cpu()
+                quick_acc=(sample_preds==sample_y).float().mean().item()
+                print(f"[EVAL] accuracy: {quick_acc*100:.2f}%")
+        elif stem=="kws_multi_cnn_model_pytorch_energy":
+            pass      
         elif stem=="refiner":
             raise RuntimeError("The ENFORCE Refiner maps logits to logits. Select a full model for evaluation")
         elif stem in ("bridge_stage1", "bridge_stage2"):
@@ -424,50 +461,57 @@ class ModelMetricsView(ctk.CTkFrame):
             def infer(xf):
                 return subnet(xf.to(device))
         
-        B=cfg["data"].get("barch_size", 64)
-        loader=DataLoader(TensorDataset(splits["X_test_spatial"], splits["y_test"]), batch_size=B, shuffle=False)
+        B=cfg["data"].get("batch_size", 64)
+        loader=DataLoader(TensorDataset(X_test, y_test), batch_size=B, shuffle=False)
         UNKNOWN_SENTINEL=splits["unknown_sentinel"]
-        all_probs, all_preds, all_labels=[], [], []
+        all_probs, all_preds, all_labels, all_energies=[], [], [], []
+        temperature=1.0
         with torch.no_grad():
             for xf, lbl in loader:
                 logits=infer(xf)
                 probs=F.softmax(logits, dim=1)
                 preds=logits.argmax(1)
+                energy=-temperature*torch.logsumexp(logits/temperature, dim=1)
                 all_probs.extend(probs.cpu().numpy())
                 all_preds.extend(preds.cpu().numpy())
                 all_labels.extend(lbl.numpy())
-        import numpy as np
-        preds_arr=np.array(all_preds)
+                all_energies.extend(energy.cpu().numpy())
         labels_arr=np.array(all_labels)
         
         #Open-set
-        val_loader=DataLoader(TensorDataset(splits["X_val_full_spatial"], splits["y_val_full"]), batch_size=B, shuffle=False)
-        ki=known_indices
-        best_T, best_h=0.0, 0.0
-        val_probs, val_labels=[], []
+        val_loader=DataLoader(TensorDataset(X_val, y_val), batch_size=B, shuffle=False)
+        val_energies, val_labels=[], []
         with torch.no_grad():
             for xf, lbl in val_loader:
                 logits=infer(xf)
-                kp=F.softmax(logits[:, ki], dim=1).max(1).values
-                val_probs.extend(kp.cpu().numpy())
+                energy=-temperature*torch.logsumexp(logits/temperature, dim=1)
+                val_energies.extend(energy.cpu().numpy())
                 val_labels.extend(lbl.numpy())
-        vp=np.array(val_probs)
+        ve=np.array(val_energies)
         vl=np.array(val_labels)
         unk_m=(vl==UNKNOWN_SENTINEL)
         kno_m=~unk_m
-        for T in np.arange(0.20, 0.96, 0.02):
-            pu=vp<T
-            ur=pu[unk_m].mean() if unk_m.any() else 0.0
-            ka=(~pu[kno_m]).mean() if kno_m.any() else 0.0
-            h=2*ur*ka/(ur+ka+1e-8)
-            if h>best_h:
-                best_h, best_T=h, float(T)
-                
+        known_energies=ve[kno_m]
+        if len(known_energies)>0:
+            best_T=float(np.percentile(known_energies, 95))
+        else:
+            best_T=-5.0
+        
+        with torch.no_grad():
+            train_unk_energies = []
+            for xb, in DataLoader(TensorDataset(splits["X_train_spatial_u"]), batch_size=256):
+                logits = infer(xb)
+                e = -temperature * torch.logsumexp(logits / temperature, dim=1)
+                train_unk_energies.extend(e.cpu().numpy())
+        train_unk_energies = np.array(train_unk_energies)
+        print(f"[EVAL] train_unk_energies: mean={train_unk_energies.mean():.3f} median={np.median(train_unk_energies):.3f}")
+        overlap_train = (train_unk_energies < best_T).mean()
+        print(f"[EVAL] % di unknown DI TRAINING che sarebbero accettati come noti: {overlap_train*100:.1f}%")
         #Apply to test
+        test_energies_arr=np.array(all_energies)
         test_probs_arr=np.array(all_probs)
-        ki_arr=np.array(ki)
-        kp_test=test_probs_arr[:, ki].max(1)
-        final_preds=np.where(kp_test>=best_T, ki_arr[test_probs_arr[:, ki].argmax(1)], UNKNOWN_SENTINEL)
+        ki_arr=np.array(known_indices)
+        final_preds=np.where(test_energies_arr>=best_T, UNKNOWN_SENTINEL, ki_arr[test_probs_arr[:, known_indices].argmax(1)])
         
         #Metrics
         cm=confusion_matrix(labels_arr, final_preds, labels=list(range(n_classes)))
@@ -616,7 +660,7 @@ class ResultsPanel(BasePanel):
         root=self.state.project_root / "models"
         paths=[]
         for fname in ["kws_multi_cnn_model_pytorch.pth", "refiner.pth", "bridge_stage1.pth", "bridge_stage2.pth", "anchor_1M.pth"]:
-            p=root / "models" /fname
+            p=root /fname
             if p.exists():
                 paths.append(p)
         

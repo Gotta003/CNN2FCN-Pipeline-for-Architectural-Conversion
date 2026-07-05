@@ -1,0 +1,31 @@
+============================================================
+    Stage 0b - Fine Tuning Energy OOD
+============================================================
+Device: cuda
+Load teacher from /home/gotta-franco/CNN2FCN-Pipeline-for-Architectural-Conversion/models/kws_multi_cnn_model_pytorch.pth
+Before fine-tuning: val_acc=97.81% kn_mean=-11.660 unk_mean=-4.897 gap=-6.763 overlap=5.9%
+Fine-tuning: epochs=15 lr=(0.0001,) m_in=-6.0 m_out=0.0 weight=0.3 ramp=3 max_acc_drop=2.0%
+Output: /home/gotta-franco/CNN2FCN-Pipeline-for-Architectural-Conversion/models/kws_multi_cnn_model_pytorch_energy.pth
+Traceback (most recent call last):
+  File "/home/gotta-franco/CNN2FCN-Pipeline-for-Architectural-Conversion/src/pipeline/stages/s0b_energy.py", line 200, in <module>
+    main()
+    ~~~~^^
+  File "/home/gotta-franco/CNN2FCN-Pipeline-for-Architectural-Conversion/src/pipeline/stages/s0b_energy.py", line 131, in main
+    opt=torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=teacher_cfg.get("weight_decay", 1e-4))
+  File "/home/gotta-franco/CNN2FCN-Pipeline-for-Architectural-Conversion/.tiny_env/lib/python3.13/site-packages/torch/optim/adamw.py", line 36, in __init__
+    super().__init__(
+    ~~~~~~~~~~~~~~~~^
+        params,
+        ^^^^^^^
+    ...<10 lines>...
+        decoupled_weight_decay=True,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/gotta-franco/CNN2FCN-Pipeline-for-Architectural-Conversion/.tiny_env/lib/python3.13/site-packages/torch/optim/adam.py", line 58, in __init__
+    if not 0.0 <= lr:
+           ^^^^^^^^^
+TypeError: '<=' not supported between instances of 'float' and 'tuple'
+[ERROR] Stage 0b - Fine Tuning Energy OOD exited with code 1.
+
+[PIPELINE] Run finished

@@ -9,7 +9,7 @@ UNKNOWN_SENTINEL=-1
 class DatasetNotPreparedError(RuntimeError):
     pass
 
-REQUIRED_FILES=["dataset_train.npz", "dataset_val_known.npz", "dataset_val_full.npz", "dataset_test.npz"]
+REQUIRED_FILES=["dataset_train.npz", "dataset_val.npz", "dataset_test.npz"]
 
 def is_dataset_prepared(root: Path) -> bool:
     return all((root/"data"/f).exists() for f in REQUIRED_FILES)
@@ -68,20 +68,39 @@ def load_splits(cfg: dict, root: Path):
     if missing:
         raise DatasetNotPreparedError("Dataset has not been prepared yet. Missing: "+", ".join(missing)+"\nRun dataset preparation first: the Data panel's 'Prepare dataset' button")
     tr=np.load(root/"data"/"dataset_train.npz")
-    va_k=np.load(root/"data"/"dataset_val_known.npz")
-    va_full=np.load(root/"data"/"dataset_val_full.npz")
+    va=np.load(root/"data"/"dataset_val.npz")
     te=np.load(root/"data"/"dataset_test.npz")
-    X_tr, y_tr=tr["X"], tr["y"].astype(np.int64)
-    X_vak, y_vak=va_k["X"], va_k["y"].astype(np.int64)
-    X_vaf, y_vaf=va_full["X"], va_full["y"].astype(np.int64)
-    X_te, y_te=te["X"], te["y"].astype(np.int64)
-    n_classes=data_cfg["num_classes"]
-    class_names=data_cfg["class_names"]
+    # TRAIN
+    X_tr_all, y_tr_all=tr["X"], tr["y"].astype(np.int64)
+    known_mask_tr=(y_tr_all>=0)
+    unk_mask_tr=(y_tr_all==UNKNOWN_SENTINEL)
+    X_tr=X_tr_all[known_mask_tr]
+    y_tr=y_tr_all[known_mask_tr]
+    X_tr_unk=X_tr_all[unk_mask_tr]
+    # VAL
+    X_va_all, y_va_all=va["X"], va["y"].astype(np.int64)
+    known_mask_va=(y_va_all>=0)
+    unk_mask_va=(y_va_all==UNKNOWN_SENTINEL)
+    X_va=X_va_all[known_mask_va]
+    y_va=y_va_all[known_mask_va]
+    X_va_unk=X_va_all[unk_mask_va]
+    # TEST
+    X_te_all, y_te_all=te["X"], te["y"].astype(np.int64)
+    known_mask_te=(y_te_all>=0)
+    unk_mask_te=(y_te_all==UNKNOWN_SENTINEL)
+    X_te=X_te_all[known_mask_te]
+    y_te=y_te_all[known_mask_te]
+    X_te_unk=X_te_all[unk_mask_te]
     
-    X_tr_flat=to_full_flat(X_tr)
-    X_vak_flat=to_full_flat(X_vak)
-    X_vaf_flat=to_full_flat(X_vaf)
-    X_te_flat=to_full_flat(X_te)
+    n_classes=data_cfg["num_classes"]
+    class_names=data_cfg["class_names"] 
+    X_tr_flat_k=to_full_flat(X_tr)
+    X_va_flat_k=to_full_flat(X_va)
+    X_te_flat_k=to_full_flat(X_te)
+    X_tr_flat_u=to_full_flat(X_tr_unk)
+    X_va_flat_u=to_full_flat(X_va_unk)
+    X_te_flat_u=to_full_flat(X_te_unk)
+    
     #Class weights
     counts=np.bincount(y_tr, minlength=n_classes).clip(1).astype(float)
     w=len(y_tr)/(n_classes*counts)
@@ -94,18 +113,25 @@ def load_splits(cfg: dict, root: Path):
     cw=(cw/cw.sum()*n_classes)
 
     return {
-        "X_train_spatial": _to_spatial(X_tr),
-        "X_train_full": torch.FloatTensor(X_tr_flat),
+        #Train
+        "X_train_spatial_k": _to_spatial(X_tr),
+        "X_train_flat_k": torch.FloatTensor(X_tr_flat_k),
+        "X_train_spatial_u": _to_spatial(X_tr_unk),
+        "X_train_flat_u": torch.FloatTensor(X_tr_flat_u),
         "y_train": torch.LongTensor(y_tr),
-        "X_val_known_spatial": _to_spatial(X_vak),
-        "X_val_known_full": torch.FloatTensor(X_vak_flat),
-        "y_val_known": torch.LongTensor(y_vak),
-        "X_val_full_spatial": _to_spatial(X_vaf),
-        "X_val_full_flat": torch.FloatTensor(X_vaf_flat),
-        "y_val_full": torch.LongTensor(y_vaf),
-        "X_test_spatial": _to_spatial(X_te),
-        "X_test_full": torch.FloatTensor(X_te_flat),
+        #Val
+        "X_val_spatial_k": _to_spatial(X_va),
+        "X_val_flat_k": torch.FloatTensor(X_va_flat_k),
+        "X_val_spatial_u": _to_spatial(X_va_unk),
+        "X_val_flat_u": torch.FloatTensor(X_va_flat_u),
+        "y_val": torch.LongTensor(y_va),
+        #Test
+        "X_test_spatial_k": _to_spatial(X_te),
+        "X_test_flat_k": torch.FloatTensor(X_te_flat_k),
+        "X_test_spatial_u": _to_spatial(X_te_unk),
+        "X_test_flat_u": torch.FloatTensor(X_te_flat_u),
         "y_test": torch.LongTensor(y_te),
+        
         "n_classes": n_classes,
         "known_indices": list(range(n_classes)),
         "unknown_sentinel": UNKNOWN_SENTINEL,

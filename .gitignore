@@ -3,3 +3,5 @@ __pycache__/
 speech_commands_v0.02.tar.gz
 data/
 assets/
+cache/
+speech_commands/
