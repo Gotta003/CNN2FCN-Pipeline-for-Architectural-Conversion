@@ -27,4 +27,5 @@ A Python implementation that combines ENFORCE logit refinement with NAS, built f
 - [EfficientNet](https://arxiv.org/abs/1905.11946)
 - [ProxylessNAS](https://arxiv.org/abs/1812.00332)
 - [Towards Open Set Deep Network](https://arxiv.org/abs/1511.06233)
+- [Energy OOD](https://arxiv.org/pdf/2010.03759)
 
